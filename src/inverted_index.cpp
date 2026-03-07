@@ -10,7 +10,6 @@
 namespace fulltext_search_service {
 
     namespace {
-
         constexpr const char *kDocsFilename = "docs.dat";
         constexpr const char *kDictFilename = "dict.dat";
         const std::vector<Entry> kEmptyPostings;
@@ -83,20 +82,28 @@ namespace fulltext_search_service {
         freq_dictionary_.reserve(static_cast<size_t>(num_terms));
         for (uint64_t t = 0; t < num_terms; ++t) {
             uint64_t word_len = 0;
-            if (!read_raw(dict_in, word_len))
+            if (!read_raw(dict_in, word_len)) {
                 return false;
+            }
+
             std::string word(static_cast<size_t>(word_len), '\0');
-            if (word_len && !dict_in.read(word.data(), static_cast<std::streamsize>(word_len)))
+            if (word_len && !dict_in.read(word.data(), static_cast<std::streamsize>(word_len))) {
                 return false;
+            }
+
             uint64_t num_postings = 0;
-            if (!read_raw(dict_in, num_postings))
+            if (!read_raw(dict_in, num_postings)) {
                 return false;
+            }
+
             std::vector<Entry> list;
             list.reserve(static_cast<size_t>(num_postings));
             for (uint64_t p = 0; p < num_postings; ++p) {
                 uint64_t doc_id = 0, count = 0;
-                if (!read_raw(dict_in, doc_id) || !read_raw(dict_in, count))
+                if (!read_raw(dict_in, doc_id) || !read_raw(dict_in, count)) {
                     return false;
+                }
+
                 list.push_back({static_cast<size_t>(doc_id), static_cast<size_t>(count)});
             }
             freq_dictionary_[std::move(word)] = std::move(list);

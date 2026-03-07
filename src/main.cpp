@@ -1,5 +1,5 @@
 #include "inverted_index.hpp"
-#include <exception>
+#include "search.hpp"
 #include <print>
 
 int main() {
@@ -19,10 +19,15 @@ int main() {
              "мда текст и еще текст"
         });
 
-        std::println("Документов: {}", index.GetDocumentCount());
+        Search search(index);
 
-        for (const auto &e: index.GetWordCount("документ")) {
-            std::println("  doc-id={} count={}", e.doc_id, e.count);
+        auto results = search.search({"документ", "мда текст"}, 5);
+        for (size_t i = 0; i < results.size(); ++i) {
+            std::println("Запрос {}: {} результатов", i, results[i].size());
+
+            for (const auto &r: results[i]) {
+                std::println("  doc-id={} rank={:.4f} \"{}\"", r.doc_id, r.rank, index.GetDocument(r.doc_id));
+            }
         }
 
     } catch (const std::exception &ex) {
