@@ -9,18 +9,37 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "14")
         message(FATAL_ERROR "Требуется GCC 14+")
     endif ()
-elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "18")
-        message(FATAL_ERROR "Требуется Clang 18+")
-    endif ()
 endif ()
+
+include(FetchContent)
+set(FETCHCONTENT_BASE_DIR ${CMAKE_SOURCE_DIR}/third_party)
+
+FetchContent_Declare(nlohmann_json
+        GIT_REPOSITORY https://github.com/nlohmann/json.git
+        GIT_TAG v3.11.3
+        )
+FetchContent_MakeAvailable(nlohmann_json)
+
+set(HTTPLIB_USE_OPENSSL_IF_AVAILABLE OFF CACHE BOOL "" FORCE)
+set(HTTPLIB_USE_ZLIB_IF_AVAILABLE OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(httplib
+        GIT_REPOSITORY https://github.com/yhirose/cpp-httplib.git
+        GIT_TAG v0.14.3
+        )
+FetchContent_MakeAvailable(httplib)
 
 add_library(fulltext_search_service_lib
         src/tokenizer.cpp
         src/inverted_index.cpp
         src/search.cpp
+        src/api_handlers.cpp
+        src/api_server.cpp
         )
 target_include_directories(fulltext_search_service_lib PUBLIC ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(fulltext_search_service_lib PUBLIC
+        nlohmann_json::nlohmann_json
+        httplib::httplib
+        )
 
 add_executable(fulltext-search-service src/main.cpp)
 target_link_libraries(fulltext-search-service PRIVATE fulltext_search_service_lib)

@@ -1,5 +1,6 @@
+#include "api_server.hpp"
 #include "inverted_index.hpp"
-#include "search.hpp"
+#include <exception>
 #include <print>
 
 int main() {
@@ -9,27 +10,13 @@ int main() {
         index.SetStoragePath("./index-data");
         if (!index.Load()) {
             std::println(stderr, "Не удалось загрузить индекс.");
-        } else {
-            std::println("Индекс загружен, документов: {}", index.GetDocumentCount());
         }
 
-        index.UpdateDocumentBase({
-             "тест документ с текстом",
-             "тест второй документ",
-             "мда текст и еще текст"
-        });
-
-        Search search(index);
-
-        auto results = search.search({"документ", "мда текст"}, 5);
-        for (size_t i = 0; i < results.size(); ++i) {
-            std::println("Запрос {}: {} результатов", i, results[i].size());
-
-            for (const auto &r: results[i]) {
-                std::println("  doc-id={} rank={:.4f} \"{}\"", r.doc_id, r.rank, index.GetDocument(r.doc_id));
-            }
+        ApiServer api(index, ApiConfig::kDefaultMaxResponses);
+        if (!api.listen("0.0.0.0", 8000)) {
+            std::println(stderr, "Не удалось запустить http сервер.");
+            return 1;
         }
-
     } catch (const std::exception &ex) {
         std::println(stderr, "Ошибка: {}", ex.what());
         return 1;

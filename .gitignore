@@ -1,4 +1,5 @@
-.idea
-build
-cmake-build-debug
-index-data
+.idea/
+build/
+cmake-build-debug/
+index-data/
+third_party/

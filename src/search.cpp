@@ -32,7 +32,6 @@ namespace fulltext_search_service {
             const size_t max_rel = std::ranges::max_element(doc_relevance, {}, [](const auto &p) {
                 return p.second;
             })->second;
-
             const float max_rel_f = static_cast<float>(max_rel);
             out.clear();
             out.reserve(doc_relevance.size());
@@ -44,7 +43,6 @@ namespace fulltext_search_service {
                 if (a.rank != b.rank) {
                     return a.rank > b.rank;
                 }
-
                 return a.doc_id < b.doc_id;
             });
 
@@ -65,7 +63,6 @@ namespace fulltext_search_service {
             process_one_query(index_, queries[i], max_responses, local_list);
             results[i] = std::move(local_list);
         }
-
         return results;
     }
 
