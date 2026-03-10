@@ -28,6 +28,12 @@ namespace fulltext_search_service {
                     cfg.server.keep_alive_max_count = v;
                 }
             }
+            if (root["max_request_body_bytes"]) {
+                int v = root["max_request_body_bytes"].as<int>();
+                if (v > 0) {
+                    cfg.server.max_request_body_bytes = static_cast<size_t>(v);
+                }
+            }
             if (root["storage_path"]) {
                 std::string path = root["storage_path"].as<std::string>();
                 if (!path.empty()) {
@@ -62,6 +68,12 @@ namespace fulltext_search_service {
                 int m = root["api_max_responses"].as<int>();
                 if (m > 0) {
                     cfg.api.max_responses = m;
+                }
+            }
+            if (root["rate_limit_requests_per_minute"]) {
+                int v = root["rate_limit_requests_per_minute"].as<int>();
+                if (v >= 0) {
+                    cfg.api.rate_limit_requests_per_minute = v;
                 }
             }
 

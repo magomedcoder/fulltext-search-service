@@ -36,6 +36,7 @@ FetchContent_MakeAvailable(yaml-cpp)
 
 add_library(fulltext_search_service_lib
         src/config.cpp
+        src/rate_limiter.cpp
         src/tokenizer.cpp
         src/inverted_index.cpp
         src/search.cpp

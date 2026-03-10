@@ -11,6 +11,10 @@ namespace fulltext_search_service {
 
         // Максимальная число keep-alive соединений
         int keep_alive_max_count = 300;
+
+        // Максимальный размер тела запроса в байтах
+        // (0 = без ограничения, используется лимит cpp-httplib по умолчанию)
+        size_t max_request_body_bytes = 1024 * 1024;  // 1 МБ
     };
 
     struct IndexConfig {
@@ -34,6 +38,9 @@ namespace fulltext_search_service {
 
         // Число результатов поиска по умолчанию
         int max_responses = 5;
+
+        // Максимальный запросов в минуту с одного ip (0 = отключено)
+        int rate_limit_requests_per_minute = 120;
     };
 
     struct AppConfig {
