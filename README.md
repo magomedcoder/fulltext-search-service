@@ -10,12 +10,12 @@
 - [x] Персистентность индекса (docs.dat, dict.dat, сохранение/загрузка)
 - [x] Конфигурация через конфиг-файл и systemd конфиг
 - [x] Логирование (флаг --dev) и Dockerfile (сборка образа и запуск)
+- [x] Ранжирование BM25 (улучшение качества поиска)
 
 ### Планируется
 
 - [ ] Rate limiting и лимиты размера запросов
 - [ ] Стоп-слова при индексации и в запросе
-- [ ] Ранжирование BM25 или TF-IDF (улучшение качества поиска)
 - [ ] Стемминг или лемматизация (нормализация словоформ)
 - [ ] Подсветка совпадений (snippets/highlight) в результатах поиска
 - [ ] Фразовый поиск (поиск точной фразы)
@@ -97,7 +97,7 @@ docker run --rm -p 8000:8000 -v $(pwd)/data:/var/lib/fulltext-search-service ful
 ### Загрузка документов
 
 ```bash
-curl -X POST 'http://localhost:8000/indexes/documents' \
+curl -X POST 'http://127.0.0.1:8000/indexes/documents' \
   -H 'Content-Type: application/json' \
   -d '[{"content": "первый документ"}, {"content": "второй документ"}]'
 ```
@@ -119,7 +119,7 @@ curl -X POST 'http://localhost:8000/indexes/documents' \
 ### Список документов
 
 ```bash
-curl 'http://localhost:8000/indexes/documents?offset=0&limit=10'
+curl 'http://127.0.0.1:8000/indexes/documents?offset=0&limit=10'
 ```
 
 | Параметр | По умолчанию | Описание |
@@ -150,7 +150,7 @@ curl 'http://localhost:8000/indexes/documents?offset=0&limit=10'
 ### Поиск
 
 ```bash
-curl -X POST 'http://localhost:8000/indexes/search' \
+curl -X POST 'http://127.0.0.1:8000/indexes/search' \
   -H 'Content-Type: application/json' \
   -d '{"q": "второго", "limit": 5}'
 ```

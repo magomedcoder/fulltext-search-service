@@ -14,6 +14,7 @@ namespace fulltext_search_service {
     namespace {
         constexpr const char *kDocsFilename = "docs.dat";
         constexpr const char *kDictFilename = "dict.dat";
+        constexpr const char *kDocLengthsFilename = "doc_lengths.dat";
 
         // Пустой вектор для возврата из GetWordCount при отсутствии слова (короче избегаем аллокаций)
         const std::vector<Entry> kEmptyPostings;
@@ -104,6 +105,36 @@ namespace fulltext_search_service {
         }
         Log(dev_mode_, "[dev] inverted_index::Load: этап docs.dat завершён - загружено {} документов", docs_.size());
 
+        // doc_lengths.dat (опционально если нет вычислим из словаря после загрузки dict)
+        doc_lengths_.clear();
+        bool doc_lengths_loaded = false;
+        fs::path doc_lengths_path = dir / kDocLengthsFilename;
+        if (fs::exists(doc_lengths_path)) {
+            std::ifstream len_in(doc_lengths_path, std::ios::binary);
+            if (len_in) {
+                uint64_t num_docs_len = 0;
+                if (read_raw(len_in, num_docs_len) && num_docs_len == docs_.size()) {
+                    doc_lengths_.reserve(static_cast<size_t>(num_docs_len));
+                    for (uint64_t i = 0; i < num_docs_len; ++i) {
+                        uint64_t len = 0;
+                        if (!read_raw(len_in, len)) {
+                            break;
+                        }
+                        doc_lengths_.push_back(static_cast<size_t>(len));
+                    }
+
+                    if (doc_lengths_.size() == docs_.size()) {
+                        doc_lengths_loaded = true;
+                        Log(dev_mode_, "[dev] inverted_index::Load: загружены длины документов из doc_lengths.dat");
+                    }
+                }
+            }
+        }
+
+        if (!doc_lengths_loaded) {
+            doc_lengths_.assign(docs_.size(), 0);
+        }
+
         // dict.dat - читаем формат [uint64 num_terms] [для каждого термина: uint64 word_len, word_len байт, uint64 num_postings, для каждого постинга: uint64 doc_id, uint64 count]
         Log(dev_mode_, "[dev] inverted_index::Load: dict.dat - формат uint64 num_terms, для каждого термина uint64 word_len, word_len байт, uint64 num_postings, затем (uint64 doc_id, uint64 count) * num_postings");
         uint64_t num_terms = 0;
@@ -148,6 +179,20 @@ namespace fulltext_search_service {
             freq_dictionary_[std::move(word)] = std::move(list);
         }
         Log(dev_mode_, "[dev] inverted_index::Load: этап dict.dat завершён. Итого: {} docs, {} терминов", docs_.size(), freq_dictionary_.size());
+
+        // Если длины документов не загрузились из файла вычисляем из инвертированного индекса
+        if (!doc_lengths_loaded) {
+            for (const auto &[word, list]: freq_dictionary_) {
+                for (const auto &e: list) {
+                    if (e.doc_id < doc_lengths_.size()) {
+                        doc_lengths_[e.doc_id] += e.count;
+                    }
+                }
+            }
+
+            Log(dev_mode_, "[dev] inverted_index::Load: длины документов вычислены из словаря");
+        }
+
         return true;
     }
 
@@ -227,6 +272,21 @@ namespace fulltext_search_service {
             }
         }
         Log(dev_mode_, "[dev] inverted_index::Save: этап dict.dat завершён. Итого сохранено - {} docs, {} терминов", docs_.size(), freq_dictionary_.size());
+
+        // doc_lengths.dat - формат: uint64 num_docs, затем для каждого doc uint64 длина_в_терминах
+        // опционально - при отсутствии длины вычисляются из словаря
+        fs::path doc_lengths_path = dir / kDocLengthsFilename;
+        std::ofstream len_out(doc_lengths_path, std::ios::binary);
+        if (len_out) {
+            const uint64_t num_docs = static_cast<uint64_t>(doc_lengths_.size());
+            if (write_raw(len_out, num_docs)) {
+                for (size_t len: doc_lengths_) {
+                    const uint64_t u = static_cast<uint64_t>(len);
+                    if (!write_raw(len_out, u)) break;
+                }
+            }
+        }
+
         return true;
     }
 
@@ -240,6 +300,7 @@ namespace fulltext_search_service {
         }
         docs_ = std::move(input_docs);
         const size_t num_docs = docs_.size();
+        doc_lengths_.resize(num_docs, 0);
         Log(dev_mode_, "[dev] inverted_index::UpdateDocumentBase: вход - вектор из {} документов (std::vector<std::string>), каждый документ - строка в UTF-8", num_docs);
 
         // Число потоков = min(документы, ядра)
@@ -262,9 +323,12 @@ namespace fulltext_search_service {
                 for (size_t doc_id: indices) {
                     std::unordered_map<std::string, size_t> word_count;
                     tokenize(docs_[doc_id], word_count, static_cast<std::size_t>(max_word_length_));
+                    size_t doc_len = 0;
                     for (auto &[w, count]: word_count) {
+                        doc_len += count;
                         local[std::move(w)].push_back({doc_id, count});
                     }
+                    doc_lengths_[doc_id] = doc_len;
                 }
             });
         }
@@ -313,6 +377,26 @@ namespace fulltext_search_service {
         }
 
         return docs_[doc_id];
+    }
+
+    size_t InvertedIndex::GetDocumentLength(size_t doc_id) const noexcept {
+        if (doc_id >= doc_lengths_.size()) {
+            return 0;
+        }
+        return doc_lengths_[doc_id];
+    }
+
+    double InvertedIndex::GetAverageDocumentLength() const noexcept {
+        if (doc_lengths_.empty()) {
+            return 0.0;
+        }
+
+        double sum = 0;
+        for (size_t len: doc_lengths_) {
+            sum += static_cast<double>(len);
+        }
+
+        return sum / static_cast<double>(doc_lengths_.size());
     }
 
 } // namespace fulltext_search_service

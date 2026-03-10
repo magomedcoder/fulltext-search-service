@@ -63,6 +63,14 @@ namespace fulltext_search_service {
             return docs_.size();
         }
 
+        // Длина документа в терминах (для BM25)
+        // 0 при неверном doc_id
+        [[nodiscard]] size_t GetDocumentLength(size_t doc_id) const noexcept;
+
+        // Средняя длина документа в терминах (для BM25)
+        // 0 при пустой коллекции
+        [[nodiscard]] double GetAverageDocumentLength() const noexcept;
+
     private:
         // Частотный словарь слово -> список (doc_id, количество вхождений)
         using Dict = std::unordered_map<std::string, std::vector<Entry>, TransparentStringHash, TransparentStringEqual>;
@@ -71,6 +79,7 @@ namespace fulltext_search_service {
         int max_word_length_ = 100;
         bool dev_mode_ = false;
         std::vector<std::string> docs_;
+        std::vector<size_t> doc_lengths_;
         Dict freq_dictionary_;
     };
 
