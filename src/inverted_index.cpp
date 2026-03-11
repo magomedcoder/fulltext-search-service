@@ -53,8 +53,8 @@ namespace fulltext_search_service {
         dev_mode_ = dev;
     }
 
-    void InvertedIndex::SetSchema(Schema schema) {
-        schema_ = std::move(schema);
+    void InvertedIndex::SetCollection(Collection collection) {
+        collection_ = std::move(collection);
     }
 
     std::string InvertedIndex::buildSearchableText(const nlohmann::json &content) const {
@@ -63,7 +63,7 @@ namespace fulltext_search_service {
         }
 
         std::string result;
-        for (const auto &field: schema_.fields) {
+        for (const auto &field: collection_.fields) {
             if (field.type != "string") {
                 continue;
             }
@@ -84,14 +84,14 @@ namespace fulltext_search_service {
         return result;
     }
 
-    bool InvertedIndex::SaveSchema() const {
+    bool InvertedIndex::SaveCollection() const {
         if (storage_path_.empty()) {
             return true;
         }
 
         namespace fs = std::filesystem;
         fs::path scheme_path = fs::path(storage_path_) / kSchemeFilename;
-        if (schema_.fields.empty()) {
+        if (collection_.fields.empty()) {
             if (fs::exists(scheme_path)) {
                 std::error_code ec;
                 fs::remove(scheme_path, ec);
@@ -109,12 +109,12 @@ namespace fulltext_search_service {
             return false;
         }
 
-        const uint64_t num_fields = static_cast<uint64_t>(schema_.fields.size());
+        const uint64_t num_fields = static_cast<uint64_t>(collection_.fields.size());
         if (!write_raw(scheme_out, num_fields)) {
             return false;
         }
 
-        for (const auto &f : schema_.fields) {
+        for (const auto &f : collection_.fields) {
             const uint8_t type_byte = (f.type == "int") ? kFieldTypeInt : kFieldTypeString;
             if (!write_raw(scheme_out, type_byte)) {
                 return false;
@@ -143,15 +143,15 @@ namespace fulltext_search_service {
         fs::path docs_path = dir / kDocsFilename;
         fs::path dict_path = dir / kDictFilename;
 
-        // Загрузка схемы из scheme.dat
+        // Загрузка коллекции из scheme.dat
         fs::path scheme_path = dir / kSchemeFilename;
         if (fs::exists(scheme_path)) {
             std::ifstream scheme_in(scheme_path, std::ios::binary);
             if (scheme_in) {
                 uint64_t num_fields = 0;
                 if (read_raw(scheme_in, num_fields)) {
-                    schema_.fields.clear();
-                    schema_.fields.reserve(static_cast<size_t>(num_fields));
+                    collection_.fields.clear();
+                    collection_.fields.reserve(static_cast<size_t>(num_fields));
                     for (uint64_t i = 0; i < num_fields; ++i) {
                         uint8_t type_byte = 0;
                         uint64_t name_len = 0;
@@ -163,15 +163,15 @@ namespace fulltext_search_service {
                         if (name_len && !scheme_in.read(name.data(), static_cast<std::streamsize>(name_len))) {
                             break;
                         }
-                        schema_.fields.push_back({std::move(name), type_byte == kFieldTypeInt ? "int" : "string"});
+                        collection_.fields.push_back({std::move(name), type_byte == kFieldTypeInt ? "int" : "string"});
                     }
-                    Log(dev_mode_, "[dev] inverted_index::Load: загружена схема, полей={}", schema_.fields.size());
+                    Log(dev_mode_, "[dev] inverted_index::Load: загружена коллекция, полей={}", collection_.fields.size());
                 }
             }
         }
 
-        if (schema_.fields.empty() || !fs::exists(docs_path) || !fs::exists(dict_path)) {
-            Log(dev_mode_, "[dev] inverted_index::Load: схема пуста или файлы индекса отсутствуют, пустой индекс");
+        if (collection_.fields.empty() || !fs::exists(docs_path) || !fs::exists(dict_path)) {
+            Log(dev_mode_, "[dev] inverted_index::Load: коллекция пуста или файлы индекса отсутствуют, пустой индекс");
             return true;
         }
 
@@ -183,7 +183,7 @@ namespace fulltext_search_service {
         }
 
         docs_.clear();
-        if (!schema_.fields.empty()) {
+        if (!collection_.fields.empty()) {
             uint64_t num_docs = 0;
             if (!read_raw(docs_in, num_docs)) {
                 Log(dev_mode_, "[dev] inverted_index::Load: ошибка чтения num_docs из docs.dat");
@@ -193,7 +193,7 @@ namespace fulltext_search_service {
             docs_.reserve(static_cast<size_t>(num_docs));
             for (uint64_t d = 0; d < num_docs; ++d) {
                 nlohmann::json doc = nlohmann::json::object();
-                for (const auto &field : schema_.fields) {
+                for (const auto &field : collection_.fields) {
                     if (field.type == "int") {
                         int64_t val = 0;
                         if (!read_raw(docs_in, val)) {
@@ -333,7 +333,7 @@ namespace fulltext_search_service {
             return false;
         }
 
-        SaveSchema();
+        SaveCollection();
 
         // docs.dat - бинарный формат: uint64 num_docs, для каждого doc по полям схемы: int -> int64_t, string -> uint64_t len + bytes
         std::ofstream docs_out(docs_path, std::ios::binary);
@@ -346,7 +346,7 @@ namespace fulltext_search_service {
             return false;
         }
         for (const auto &doc : docs_) {
-            for (const auto &field : schema_.fields) {
+            for (const auto &field : collection_.fields) {
                 auto it = doc.find(field.name);
                 if (it == doc.end()) {
                     continue;

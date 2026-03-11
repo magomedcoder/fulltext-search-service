@@ -7,15 +7,15 @@
 
 namespace fulltext_search_service {
 
-    // Поле схемы документа имя и тип (int или string)
-    struct SchemaField {
+    // Поле коллекции: имя и тип (int или string)
+    struct CollectionField {
         std::string name;
         std::string type;
     };
 
-    // Схема документа - список полей для валидации и индексации
-    struct Schema {
-        std::vector<SchemaField> fields;
+    // Коллекция - список полей для валидации и индексации документов
+    struct Collection {
+        std::vector<CollectionField> fields;
     };
 
     // Один постинг в инвертированном индексе: doc_id и количество вхождений термина в документе

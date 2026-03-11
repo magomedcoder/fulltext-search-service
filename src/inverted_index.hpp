@@ -48,21 +48,21 @@ namespace fulltext_search_service {
         // Вызывается автоматически после UpdateDocumentBase
         bool Save() const;
 
-        // Схема: типы полей (int, string)
+        // Коллекция: типы полей (int, string)
         // Строковые поля индексируются для поиска
-        void SetSchema(Schema schema);
+        void SetCollection(Collection collection);
 
-        // Сохраняет схему
-        bool SaveSchema() const;
-        [[nodiscard]] const Schema &GetSchema() const noexcept {
-            return schema_;
+        // Сохраняет описание коллекции
+        bool SaveCollection() const;
+        [[nodiscard]] const Collection &GetCollection() const noexcept {
+            return collection_;
         }
 
-        [[nodiscard]] bool HasSchema() const noexcept {
-            return !schema_.fields.empty();
+        [[nodiscard]] bool HasCollection() const noexcept {
+            return !collection_.fields.empty();
         }
 
-        // Входной документ объект по схеме (content как json объект)
+        // Входной документ - объект по полям коллекции (content как json объект)
         struct DocumentInput {
             nlohmann::json content;
         };
@@ -92,7 +92,7 @@ namespace fulltext_search_service {
         [[nodiscard]] double GetAverageDocumentLength() const noexcept;
 
     private:
-        // Собирает строку для полнотекстового поиска из полей типа string в content по схеме
+        // Собирает строку для полнотекстового поиска из полей типа string в content по полям коллекции
         [[nodiscard]] std::string buildSearchableText(const nlohmann::json &content) const;
 
         // Частотный словарь слово -> список (doc_id, количество вхождений)
@@ -101,7 +101,7 @@ namespace fulltext_search_service {
         std::string storage_path_;
         int max_word_length_ = 100;
         bool dev_mode_ = false;
-        Schema schema_;
+        Collection collection_;
         std::vector<nlohmann::json> docs_;
         std::vector<size_t> doc_lengths_;
         Dict freq_dictionary_;

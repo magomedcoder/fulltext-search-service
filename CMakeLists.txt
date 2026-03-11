@@ -39,6 +39,7 @@ add_library(fulltext_search_service_lib
         src/rate_limiter.cpp
         src/tokenizer.cpp
         src/inverted_index.cpp
+        src/index_registry.cpp
         src/search.cpp
         src/api_handlers.cpp
         src/api_server.cpp

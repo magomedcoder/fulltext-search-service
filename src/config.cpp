@@ -30,7 +30,7 @@ namespace fulltext_search_service {
             }
             if (root["max_request_body_bytes"]) {
                 int v = root["max_request_body_bytes"].as<int>();
-                if (v > 0) {
+                if (v >= 0) {
                     cfg.server.max_request_body_bytes = static_cast<size_t>(v);
                 }
             }

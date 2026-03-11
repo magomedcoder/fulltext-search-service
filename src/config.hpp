@@ -13,8 +13,9 @@ namespace fulltext_search_service {
         int keep_alive_max_count = 300;
 
         // Максимальный размер тела запроса в байтах
-        // (0 = без ограничения, используется лимит cpp-httplib по умолчанию)
-        size_t max_request_body_bytes = 1024 * 1024;  // 1 МБ
+        // (0 = без ограничения)
+        // по умолчанию 2 ГБ
+        size_t max_request_body_bytes = 2ULL * 1024 * 1024 * 1024;
     };
 
     struct IndexConfig {

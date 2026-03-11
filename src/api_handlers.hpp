@@ -1,23 +1,23 @@
 #pragma once
 
 #include "config.hpp"
-#include "inverted_index.hpp"
+#include "index_registry.hpp"
 #include "search.hpp"
 #include <httplib.h>
 
 namespace fulltext_search_service {
 
     void handleSearch(
-            InvertedIndex &index,
-            Search &search,
+            IndexRegistry &registry,
             const ApiConfigSection &api,
+            const IndexConfig &index_config,
             const httplib::Request &req,
             httplib::Response &res,
             bool dev_mode = false
     );
 
     void handleGetDocuments(
-            InvertedIndex &index,
+            IndexRegistry &registry,
             const ApiConfigSection &api,
             const httplib::Request &req,
             httplib::Response &res,
@@ -25,28 +25,35 @@ namespace fulltext_search_service {
     );
 
     void handlePostDocuments(
-            InvertedIndex &index,
+            IndexRegistry &registry,
             const httplib::Request &req,
             httplib::Response &res,
             bool dev_mode = false
     );
 
-    void handleGetScheme(
-            InvertedIndex &index,
+    void handleListCollections(
+            IndexRegistry &registry,
             const httplib::Request &req,
             httplib::Response &res,
             bool dev_mode = false
     );
 
-    void handlePostScheme(
-            InvertedIndex &index,
+    void handleGetCollection(
+            IndexRegistry &registry,
             const httplib::Request &req,
             httplib::Response &res,
             bool dev_mode = false
     );
 
-    void handleDeleteScheme(
-            InvertedIndex &index,
+    void handlePostCollection(
+            IndexRegistry &registry,
+            const httplib::Request &req,
+            httplib::Response &res,
+            bool dev_mode = false
+    );
+
+    void handleDeleteCollection(
+            IndexRegistry &registry,
             const httplib::Request &req,
             httplib::Response &res,
             bool dev_mode = false

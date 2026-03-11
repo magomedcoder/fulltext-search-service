@@ -15,6 +15,7 @@
 - [x] Схема документов
 - [x] Документы как объект по схеме
 - [x] Индексация для поиска только по строковым полям схемы
+- [x] Коллекции по имени
 
 ### Планируется
 
@@ -34,10 +35,9 @@
 - GCC 14
 - CMake 3.22
 - Git (для загрузки сторонних библиотек через FetchContent)
-- make (по умолчанию, входит в build-essential) или ninja (опционально: cmake -G Ninja -B build)
+- make (по умолчанию) или ninja (опционально: cmake -G Ninja -B build)
 
-При первой конфигурации CMake скачивает исходники зависимостей (nlohmann/json, cpp-httplib, yaml-cpp) в каталог
-third_party
+При первой конфигурации CMake скачивает исходники зависимостей (nlohmann/json, cpp-httplib, yaml-cpp)
 
 #### Сборка
 
@@ -54,12 +54,8 @@ cmake --build build
 ./build/fulltext-search-service --config=config.yaml
 ```
 
-Без опции --config конфиг обязательно читается из /etc/fulltext-search-service/config.yaml
-при отсутствии или ошибке файла сервис завершается с ошибкой
-
-```bash
-./build/fulltext-search-service --config=config.yaml
-```
+Без опции `--config` конфиг читается из `/etc/fulltext-search-service/config.yaml`
+ при отсутствии или ошибке файла сервис завершается с ошибкой
 
 ```bash
 sudo mkdir -p /var/lib/fulltext-search-service /etc/fulltext-search-service
@@ -89,7 +85,7 @@ docker build -t fulltext-search-service .
 docker run --rm -p 8000:8000 fulltext-search-service
 ```
 
-Запуск с сохранением индекса на хосте
+С сохранением индекса на хосте
 
 ```bash
 docker run --rm -p 8000:8000 -v $(pwd)/data:/var/lib/fulltext-search-service fulltext-search-service
@@ -97,53 +93,50 @@ docker run --rm -p 8000:8000 -v $(pwd)/data:/var/lib/fulltext-search-service ful
 
 ## API
 
-### Схема
+Все операции привязаны к имени коллекции `name`
 
-Перед загрузкой документов нужно создать схему
-Поддерживаются типы полей int, string
-Строковые поля индексируются для поиска
+Коллекции изолированы: у каждой свои поля и свои документы
 
-#### Создать схему
+Имя коллекции в пути - латиница, цифры, `_`, `-` (до 256 символов)
+
+### Коллекции
+
+Поддерживаются типы полей: `int`, `string`
+
+Строковые поля индексируются для полнотекстового поиска
+
+#### Создать коллекцию
 
 ```bash
-curl -X POST 'http://127.0.0.1:8000/indexes/schemes' \
+curl -X POST http://127.0.0.1:8000/indexes/collections \
   -H 'Content-Type: application/json' \
-  -d '{"fields": [{ "name": "id", "type": "int" }, { "name": "name", "type": "string" }]}'
+  -d '{"name": "products", "fields": [{"name": "id", "type": "int"}, {"name": "name", "type": "string"}]}'
 ```
 
-Пример ответа
-
-```json
-{
-  "fields": [
-    {
-      "name": "id",
-      "type": "int"
-    },
-    {
-      "name": "name",
-      "type": "string"
-    }
-  ]
-}
-```
-
-#### Получить схему
+#### Список коллекций
 
 ```bash
-curl 'http://127.0.0.1:8000/indexes/schemes'
+curl http://127.0.0.1:8000/indexes/collections
 ```
 
-#### Удалить схему
+#### Получить коллекцию по имени
 
 ```bash
-curl -X DELETE 'http://127.0.0.1:8000/indexes/schemes'
+curl http://127.0.0.1:8000/indexes/collections/products
 ```
 
-### Загрузка документов
+#### Удалить коллекцию по имени
 
 ```bash
-curl -X POST 'http://127.0.0.1:8000/indexes/documents' \
+curl -X DELETE http://127.0.0.1:8000/indexes/collections/products
+```
+
+---
+
+#### Загрузка документов
+
+```bash
+curl -X POST http://127.0.0.1:8000/indexes/products/documents \
   -H 'Content-Type: application/json' \
   -d '[{"content": {"id": 1, "name": "Первый документ"}}, {"content": {"id": 2, "name": "Второй документ"}}]'
 ```
@@ -163,13 +156,13 @@ curl -X POST 'http://127.0.0.1:8000/indexes/documents' \
 ### Список документов
 
 ```bash
-curl 'http://127.0.0.1:8000/indexes/documents?offset=0&limit=10'
+curl http://127.0.0.1:8000/indexes/products/documents?offset=0&limit=10
 ```
 
-| Параметр | По умолчанию | Описание |
-|----------|--------------|----------|
-| `limit`  | int          | до 100   |
-| `offset` | int          | 0        |
+| Параметр | По умолчанию  |
+|----------|---------------|
+| `limit`  | 20  (до 1000) |
+| `offset` | 0             |
 
 Пример ответа
 
@@ -197,19 +190,21 @@ curl 'http://127.0.0.1:8000/indexes/documents?offset=0&limit=10'
 }
 ```
 
+---
+
 ### Поиск
 
 ```bash
-curl -X POST 'http://127.0.0.1:8000/indexes/search' \
+curl -X POST http://127.0.0.1:8000/indexes/products/search \
   -H 'Content-Type: application/json' \
   -d '{"q": "Второй", "limit": 5, "offset": 0}'
 ```
 
-| Параметр | Тип    | По умолчанию | Описание |
-|----------|--------|--------------|----------|
-| `q`      | string | `""`         |          |
-| `limit`  | int    | 20           | до 100   |
-| `offset` | int    | 0            |          |
+| Параметр | Тип    | По умолчанию |
+|----------|--------|--------------|
+| `q`      | string | `""`         |
+| `limit`  | int    | 20 (до 100)  |
+| `offset` | int    | 0            |
 
 Пример ответа
 
@@ -233,5 +228,6 @@ curl -X POST 'http://127.0.0.1:8000/indexes/search' \
 }
 ```
 
-_rankingScore - по формуле BM25 учитываются частоты слов в документе (tf), редкость слов в коллекции (idf), длина документа
-processingTimeMs - время обработки запроса на сервере в миллисекундах
+- **id** порядковый номер документа в коллекции (индекс: 0, 1, 2,...)
+- **\_rankingScore** - оценка по BM25 (учитываются tf, idf, длина документа), нормализована в [0, 1]
+- **processingTimeMs** - время обработки запроса на сервере в миллисекундах

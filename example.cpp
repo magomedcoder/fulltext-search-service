@@ -15,21 +15,24 @@ int main() {
         return json::parse(res->body.empty() ? "{}" : res->body);
     };
 
-    std::println("1 -- Создание схемы (id: int, name: string)");
+    const std::string collection_name = "example";
 
-    json scheme_body = {
+    std::println("1 -- Создание коллекции \"{}\" (id: int, name: string)", collection_name);
+
+    json collection_body = {
+        {"name", collection_name},
         {"fields", json::array({
             {{"name", "id"},  {"type", "int"}},
             {{"name", "name"}, {"type", "string"}}
         })}
     };
-    auto post_scheme = cli.Post("/indexes/schemes", scheme_body.dump(), "application/json");
-    json scheme_res = get_json(post_scheme);
-    if (scheme_res.is_null() || !scheme_res.contains("fields")) {
-        std::println("Ошибка создания схемы\n");
-    } else {
-        std::println("Схема создана\n");
+    auto post_collection = cli.Post("/indexes/collections", collection_body.dump(), "application/json");
+    json collection_res = get_json(post_collection);
+    if (collection_res.is_null() || !collection_res.contains("fields")) {
+        std::println("Ошибка создания коллекции\n");
+        return 1;
     }
+    std::println("Коллекция создана\n");
 
     std::println("2 -- Загрузка документов");
 
@@ -41,7 +44,7 @@ int main() {
             }
     );
 
-    auto post_docs = cli.Post("/indexes/documents", docs_body.dump(), "application/json");
+    auto post_docs = cli.Post("/indexes/" + collection_name + "/documents", docs_body.dump(), "application/json");
     json docs_res = get_json(post_docs);
     if (!docs_res.is_null()) {
         std::println("Ответ: received={}\n", docs_res.value("received", 0));
@@ -52,7 +55,7 @@ int main() {
 
     std::println("3 -- Список документов");
 
-    auto get_docs = cli.Get("/indexes/documents?offset=0&limit=10");
+    auto get_docs = cli.Get("/indexes/" + collection_name + "/documents?offset=0&limit=10");
     json list_res = get_json(get_docs);
     if (!list_res.is_null() && list_res.contains("results")) {
         for (const auto &item: list_res["results"]) {
@@ -70,7 +73,7 @@ int main() {
 
     for (const auto &query: {"тест", "второй документ", "мда текст"}) {
         json search_body = {{"q", query}, {"limit", 5}};
-        auto post_search = cli.Post("/indexes/search", search_body.dump(), "application/json");
+        auto post_search = cli.Post("/indexes/" + collection_name + "/search", search_body.dump(), "application/json");
         json search_res = get_json(post_search);
 
         if (!search_res.is_null() && search_res.contains("results")) {

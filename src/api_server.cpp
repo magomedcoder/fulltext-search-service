@@ -14,15 +14,14 @@
 namespace fulltext_search_service {
 
     ApiServer::ApiServer(
-            InvertedIndex &index,
+            IndexRegistry &registry,
             const ApiConfigSection &api_config,
             const ServerConfig &server_config,
             const IndexConfig &index_config,
             bool dev_mode
-    ) : index_(index), api_config_(api_config), server_config_(server_config),
+    ) : registry_(registry), api_config_(api_config), server_config_(server_config),
         index_config_(index_config),
         dev_mode_(dev_mode),
-        search_(std::make_unique<Search>(index, static_cast<std::size_t>(index_config.max_word_length), dev_mode)),
         server_(std::make_unique<httplib::Server>()),
         rate_limiter_(api_config.rate_limit_requests_per_minute) {
         server_->set_keep_alive_max_count(server_config_.keep_alive_max_count);
@@ -58,48 +57,63 @@ namespace fulltext_search_service {
     }
 
     void ApiServer::setupRoutes() {
-        server_->Post("/indexes/search", [this](const httplib::Request &req, httplib::Response &res) {
+        server_->Post("/indexes/collections", [this](const httplib::Request &req, httplib::Response &res) {
             Log(dev_mode_, "[dev] {} {}", req.method, req.path);
             if (!checkRateLimit(req, res)) {
                 return;
             }
-            handleSearch(index_, *search_, api_config_, req, res, dev_mode_);
+            handlePostCollection(registry_, req, res, dev_mode_);
         });
-        server_->Get("/indexes/documents", [this](const httplib::Request &req, httplib::Response &res) {
+
+        server_->Get("/indexes/collections/:name", [this](const httplib::Request &req, httplib::Response &res) {
             Log(dev_mode_, "[dev] {} {}", req.method, req.path);
             if (!checkRateLimit(req, res)) {
                 return;
             }
-            handleGetDocuments(index_, api_config_, req, res, dev_mode_);
+            handleGetCollection(registry_, req, res, dev_mode_);
         });
-        server_->Post("/indexes/documents", [this](const httplib::Request &req, httplib::Response &res) {
+
+        server_->Get("/indexes/collections", [this](const httplib::Request &req, httplib::Response &res) {
             Log(dev_mode_, "[dev] {} {}", req.method, req.path);
             if (!checkRateLimit(req, res)) {
                 return;
             }
-            handlePostDocuments(index_, req, res, dev_mode_);
+            handleListCollections(registry_, req, res, dev_mode_);
         });
-        server_->Get("/indexes/schemes", [this](const httplib::Request &req, httplib::Response &res) {
+
+        server_->Delete("/indexes/collections/:name", [this](const httplib::Request &req, httplib::Response &res) {
             Log(dev_mode_, "[dev] {} {}", req.method, req.path);
             if (!checkRateLimit(req, res)) {
                 return;
             }
-            handleGetScheme(index_, req, res, dev_mode_);
+            handleDeleteCollection(registry_, req, res, dev_mode_);
         });
-        server_->Post("/indexes/schemes", [this](const httplib::Request &req, httplib::Response &res) {
+
+        server_->Post("/indexes/:name/search", [this](const httplib::Request &req, httplib::Response &res) {
             Log(dev_mode_, "[dev] {} {}", req.method, req.path);
             if (!checkRateLimit(req, res)) {
                 return;
             }
-            handlePostScheme(index_, req, res, dev_mode_);
+            handleSearch(registry_, api_config_, index_config_, req, res, dev_mode_);
         });
-        server_->Delete("/indexes/schemes", [this](const httplib::Request &req, httplib::Response &res) {
+
+        server_->Get("/indexes/:name/documents", [this](const httplib::Request &req, httplib::Response &res) {
             Log(dev_mode_, "[dev] {} {}", req.method, req.path);
             if (!checkRateLimit(req, res)) {
                 return;
             }
-            handleDeleteScheme(index_, req, res, dev_mode_);
+            handleGetDocuments(registry_, api_config_, req, res, dev_mode_);
         });
+
+        server_->Post("/indexes/:name/documents", [this](const httplib::Request &req, httplib::Response &res) {
+            Log(dev_mode_, "[dev] {} {}", req.method, req.path);
+            if (!checkRateLimit(req, res)) {
+                return;
+            }
+
+            handlePostDocuments(registry_, req, res, dev_mode_);
+        });
+
         server_->set_error_handler([this](const httplib::Request &req, httplib::Response &res) {
             if (res.status == 404) {
                 Log(dev_mode_, "[dev] 404 path={}", req.path);

@@ -1,7 +1,7 @@
 #include "api_server.hpp"
 #include "config.hpp"
+#include "index_registry.hpp"
 #include "utils.hpp"
-#include "inverted_index.hpp"
 #include <exception>
 #include <print>
 #include <string_view>
@@ -69,16 +69,12 @@ int main(int argc, char *argv[]) {
             Log(true, "[dev] config path={}", config.index.storage_path);
         }
 
-        InvertedIndex index;
-        index.SetStoragePath(config.index.storage_path);
-        index.SetMaxWordLength(config.index.max_word_length);
-        index.SetDevMode(config.dev_mode);
-        if (!index.Load()) {
-            Log(config.dev_mode, "[dev] не удалось загрузить index");
-            std::println(stderr, "Не удалось загрузить индекс.");
-        }
+        IndexRegistry registry;
+        registry.SetBaseStoragePath(config.index.storage_path);
+        registry.SetMaxWordLength(config.index.max_word_length);
+        registry.SetDevMode(config.dev_mode);
 
-        ApiServer api(index, config.api, config.server, config.index, config.dev_mode);
+        ApiServer api(registry, config.api, config.server, config.index, config.dev_mode);
         if (!api.listen(config.server.host, config.server.port)) {
             Log(config.dev_mode, "[dev] не удалось запустить listen");
             std::println(stderr, "Не удалось запустить http сервер.");

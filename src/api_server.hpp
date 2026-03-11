@@ -2,9 +2,8 @@
 
 #include "api_handlers.hpp"
 #include "config.hpp"
-#include "inverted_index.hpp"
+#include "index_registry.hpp"
 #include "rate_limiter.hpp"
-#include "search.hpp"
 #include <memory>
 #include <string>
 
@@ -16,7 +15,7 @@ namespace fulltext_search_service {
 
     class ApiServer {
     public:
-        ApiServer(InvertedIndex &index,
+        ApiServer(IndexRegistry &registry,
                   const ApiConfigSection &api_config,
                   const ServerConfig &server_config,
                   const IndexConfig &index_config,
@@ -40,20 +39,12 @@ namespace fulltext_search_service {
         // res 429 и возвращает false
         bool checkRateLimit(const httplib::Request &req, httplib::Response &res);
 
-        InvertedIndex &index_;
-
+        IndexRegistry &registry_;
         ApiConfigSection api_config_;
-
         ServerConfig server_config_;
-
         IndexConfig index_config_;
-
         bool dev_mode_ = false;
-
-        std::unique_ptr<Search> search_;
-
         std::unique_ptr<httplib::Server> server_;
-
         RateLimiter rate_limiter_;
     };
 

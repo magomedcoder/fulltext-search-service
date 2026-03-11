@@ -43,9 +43,18 @@ namespace {
         return arr;
     }
 
+    const std::string kIndexName = "bench";
+
     bool postDocuments(httplib::Client &cli, const json &docs, int &received) {
-        auto res = cli.Post("/indexes/documents", docs.dump(), "application/json");
-        if (!res || res->status != 202) {
+        auto res = cli.Post("/indexes/" + kIndexName + "/documents", docs.dump(), "application/json");
+        if (!res) {
+            std::println(stderr, "Ошибка загрузки: нет ответа (timeout или соединение)");
+            return false;
+        }
+
+        if (res->status != 202) {
+            std::string msg = res->body.size() > 300 ? res->body.substr(0, 300) + "..." : res->body;
+            std::println(stderr, "Ошибка загрузки: HTTP {} body: {}", res->status, msg);
             return false;
         }
         json body = json::parse(res->body.empty() ? "{}" : res->body);
@@ -60,7 +69,7 @@ namespace {
                 {"limit", limit}
         };
         auto t0 = std::chrono::steady_clock::now();
-        auto res = cli.Post("/indexes/search", body.dump(), "application/json");
+        auto res = cli.Post("/indexes/" + kIndexName + "/search", body.dump(), "application/json");
         auto t1 = std::chrono::steady_clock::now();
         auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
         outTimeMs.push_back(static_cast<int64_t>(ms));
@@ -79,25 +88,27 @@ int main() {
 
     httplib::Client cli("127.0.0.1", 8000);
     cli.set_connection_timeout(2, 0);
+    cli.set_read_timeout(1800, 0);
+    cli.set_write_timeout(1800, 0);
 
     std::mt19937 rng(12345);
 
-    std::println("0 -- Создание схемы (id: int, name: string)");
-    json scheme_body = {
-        {
-            "fields", json::array({
-                {{"name", "id"},   {"type", "int"}},
-                {{"name", "name"}, {"type", "string"}}
-            })
-        }
+    std::println("0 -- Создание коллекции \"{}\" (id: int, name: string)", kIndexName);
+    json collection_body = {
+            {"name",   kIndexName},
+            {"fields", json::array({
+                    {{"name", "id"},   {"type", "int"}},
+                    {{"name", "name"}, {"type", "string"}}
+            })}
     };
-    auto scheme_res = cli.Post("/indexes/schemes", scheme_body.dump(), "application/json");
-    if (!scheme_res || (scheme_res->status != 201 && scheme_res->status != 200)) {
-        std::println(stderr, "Ошибка создания схемы (status={})", scheme_res ? scheme_res->status : 0);
+    auto collection_res = cli.Post("/indexes/collections", collection_body.dump(), "application/json");
+    if (!collection_res || (collection_res->status != 201 && collection_res->status != 200)) {
+        std::string msg = collection_res && !collection_res->body.empty() ? collection_res->body.substr(0, 200) : "нет ответа";
+        std::println(stderr, "Ошибка создания коллекции (status={}): {}", collection_res ? collection_res->status : 0, msg);
         return 1;
     }
 
-    std::println("   Схема создана\n");
+    std::println("   Коллекция создана\n");
 
     std::println("1 -- Загрузка {} документов", kTotalDocs);
     json docs = makeDocumentsBatch(0, kTotalDocs, rng);
