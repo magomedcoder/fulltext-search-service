@@ -1,13 +1,18 @@
 #pragma once
 
 #include <charconv>
+#include <cstdint>
 #include <nlohmann/json.hpp>
 #include <httplib.h>
 #include <iostream>
+#include <string>
 
 namespace fulltext_search_service {
 
     constexpr const char *kJsonContentType = "application/json";
+
+    // Приводит строку в UTF-8 к нижнему регистру (латиница A-Z, кириллица А-Я, Ё)
+    void ToLowerUtf8(std::string &s);
 
     inline void sendJson(httplib::Response &res, int status, const nlohmann::json &body) {
         res.status = status;

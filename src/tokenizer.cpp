@@ -1,5 +1,6 @@
 #include "tokenizer.hpp"
 #include "stemmer.hpp"
+#include "utils.hpp"
 #include <ranges>
 
 namespace fulltext_search_service {
@@ -17,7 +18,9 @@ namespace fulltext_search_service {
             for (char c: word_range) {
                 word += c;
             }
+
             if (!word.empty() && word.size() <= max_word_length) {
+                ToLowerUtf8(word);
                 std::string key = stemmer ? stemmer->normalize(word) : word;
                 if (!key.empty()) {
                     ++out[std::move(key)];

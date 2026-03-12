@@ -17,7 +17,12 @@ namespace fulltext_search_service {
         }
     };
 
+    static constexpr const char *kUtf8Encoding = "UTF_8";
+
     std::unique_ptr<Stemmer> Stemmer::create(const char *algorithm, const char *charenc) {
+        if (!charenc) {
+            charenc = kUtf8Encoding;
+        }
         sb_stemmer *s = sb_stemmer_new(algorithm, charenc);
         if (!s) {
             return nullptr;

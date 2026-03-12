@@ -44,6 +44,7 @@ target_include_directories(stemmer PUBLIC ${libstemmer_SOURCE_DIR}/include)
 
 add_library(fulltext_search_service_lib
         src/config.cpp
+        src/utils.cpp
         src/highlight.cpp
         src/rate_limiter.cpp
         src/stemmer.cpp
