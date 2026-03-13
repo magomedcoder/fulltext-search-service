@@ -45,7 +45,7 @@
 #### Сборка
 
 ```bash
-cmake -B build -DCMAKE_BUILD_TYPE=Debug
+cmake -B build -DCMAKE_BUILD_TYPE=Debug -DBUILD_STATIC=ON
 cmake --build build
 ```
 
@@ -73,7 +73,7 @@ sudo systemctl enable --now fulltext-search-service
 
 ### Docker
 
-Получить бинарник
+Получить статический бинарник
 
 ```bash
 docker build --target binary -t fulltext-search-service-binary .

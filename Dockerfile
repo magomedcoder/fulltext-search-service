@@ -9,11 +9,9 @@ COPY config.yaml ./
 COPY src/ ./src/
 COPY example.cpp benchmark_load.cpp ./
 
-RUN cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build
+RUN cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_STATIC=ON  && cmake --build build
 
 FROM alpine:3.22 AS binary
-
-RUN apk add --no-cache libstdc++
 
 COPY --from=builder /build/build/fulltext-search-service /fulltext-search-service
 
@@ -22,8 +20,6 @@ RUN mkdir -p /output
 CMD ["cp", "/fulltext-search-service", "/output/fulltext-search-service"]
 
 FROM alpine:3.22
-
-RUN apk add --no-cache libstdc++
 
 WORKDIR /app
 
