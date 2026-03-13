@@ -22,6 +22,7 @@ namespace fulltext_search_service {
         // partial == true - при отсутствии точного совпадения ищем термины, содержащие запрос как подстроку (из любой части слова)
         // fuzzy == true - для терминов, отсутствующих в индексе, подбираются близкие по Левенштейну (до fuzzy_max_edits правок)
         // out_matched_terms: если не nullptr, заполняется множеством индексных терминов, по которым найден результат (для подсветки)
+        // out_total: если не nullptr, для первого запроса записывается общее число документов, подходящих под запрос (до пагинации)
         [[nodiscard]] std::vector<std::vector<RelativeIndex>> search(
                 const std::vector<std::string> &queries,
                 int max_responses,
@@ -29,7 +30,8 @@ namespace fulltext_search_service {
                 bool partial = true,
                 bool fuzzy = false,
                 int fuzzy_max_edits = 2,
-                std::unordered_set<std::string> *out_matched_terms = nullptr
+                std::unordered_set<std::string> *out_matched_terms = nullptr,
+                size_t *out_total = nullptr
         ) const;
 
     private:

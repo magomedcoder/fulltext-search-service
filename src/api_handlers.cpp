@@ -130,6 +130,7 @@ namespace fulltext_search_service {
         auto start = std::chrono::steady_clock::now();
         std::unordered_set<std::string> matched_terms;
         std::vector<std::vector<RelativeIndex>> results;
+        size_t search_total = 0;
         try {
             results = search.search(
                     std::vector{query},
@@ -138,7 +139,8 @@ namespace fulltext_search_service {
                     partial_search,
                     fuzzy_search,
                     fuzzy_max_edits,
-                    (highlight_enabled || !crop_fields_set.empty() || partial_search || fuzzy_search) ? &matched_terms : nullptr
+                    (highlight_enabled || !crop_fields_set.empty() || partial_search || fuzzy_search) ? &matched_terms : nullptr,
+                    &search_total
             );
         } catch (const std::exception &e) {
             Log(dev_mode, "[dev] search exception: {}", e.what());
@@ -260,12 +262,10 @@ namespace fulltext_search_service {
         for (auto &item : items) {
             results_json.push_back(std::move(item));
         }
-        Log(dev_mode, "[dev] search index={} q=\"{}\" results={}", *name_opt, query, full_list.size());
+        Log(dev_mode, "[dev] search index={} q=\"{}\" results={} total={}", *name_opt, query, full_list.size(), search_total);
         sendJson(res, 200, {
                 {"results",          results_json},
-                {"offset",           offset},
-                {"limit",            limit},
-                {"total",            full_list.size()},
+                {"total",            search_total},
                 {"processingTimeMs", processing_time_ms},
                 {"query",            query}
         });

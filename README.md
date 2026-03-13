@@ -324,7 +324,7 @@ curl -X POST http://127.0.0.1:8000/indexes/products/search \
 ```bash
 curl -X POST http://127.0.0.1:8000/indexes/products/search \
   -H 'Content-Type: application/json' \
-  -d '{"q": "Второй документ", "phrase": true, "limit": 5}'
+  -d '{"q": "Второй документ", "limit": 5, "phrase": true}'
 ```
 
 Пример запроса по подстроке (поиск из любой части слова)
@@ -332,7 +332,7 @@ curl -X POST http://127.0.0.1:8000/indexes/products/search \
 ```bash
 curl -X POST http://127.0.0.1:8000/indexes/products/search \
   -H 'Content-Type: application/json' \
-  -d '{"q": "док", "partial": true, "limit": 5}'
+  -d '{"q": "док", "limit": 5, "partial": true}'
 ```
 
 Пример запроса с нечётким поиском (поиск с опечатками)
@@ -340,5 +340,5 @@ curl -X POST http://127.0.0.1:8000/indexes/products/search \
 ```bash
 curl -X POST http://127.0.0.1:8000/indexes/products/search \
   -H 'Content-Type: application/json' \
-  -d '{"q": "Вторй документ", "fuzzy": true, "fuzzy_max_edits": 2, "limit": 5}'
+  -d '{"q": "Вторй документ", "limit": 5, "fuzzy": true, "fuzzy_max_edits": 2}'
 ```

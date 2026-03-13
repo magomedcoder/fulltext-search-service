@@ -60,13 +60,15 @@ namespace fulltext_search_service {
         }
 
         // Фразовый поиск: кандидаты по пересечению постингов, проверка точной фразы по тексту документа
+        // out_total: если не nullptr, записывается общее число документов, совпавших с фразой
         void process_phrase_query(
                 const InvertedIndex &index,
                 const std::string &query,
                 int max_responses,
                 std::size_t max_word_length,
                 bool dev_mode,
-                std::vector<RelativeIndex> &out
+                std::vector<RelativeIndex> &out,
+                size_t *out_total = nullptr
         ) {
             std::vector<std::string> query_terms;
             query_terms.reserve(32);
@@ -122,9 +124,9 @@ namespace fulltext_search_service {
                 doc_terms.clear();
                 tokenizeToSequence(text, doc_terms, max_word_length, index.GetStemmer());
                 if (containsPhrase(doc_terms, query_terms)) {
-                    out.push_back({doc_id, 1.0f});
-                    if (out.size() >= static_cast<size_t>(max_responses)) {
-                        break;
+                    if (out_total) (*out_total)++;
+                    if (out.size() < static_cast<size_t>(max_responses)) {
+                        out.push_back({doc_id, 1.0f});
                     }
                 }
             }
@@ -174,6 +176,7 @@ namespace fulltext_search_service {
         }
 
         // tokenize(query) -> BM25 по doc_id -> нормализация ранга [0, 1] -> сортировка -> топ max_responses
+        // out_total: если не nullptr, записывается общее число документов, подходящих под запрос
         void process_one_query(
                 const InvertedIndex &index,
                 const std::string &query,
@@ -185,10 +188,11 @@ namespace fulltext_search_service {
                 bool fuzzy_mode,
                 int fuzzy_max_edits,
                 std::unordered_set<std::string> *out_matched_terms,
-                std::vector <RelativeIndex> &out
+                std::vector <RelativeIndex> &out,
+                size_t *out_total = nullptr
         ) {
             if (phrase_mode) {
-                process_phrase_query(index, query, max_responses, max_word_length, dev_mode, out);
+                process_phrase_query(index, query, max_responses, max_word_length, dev_mode, out, out_total);
                 return;
             }
 
@@ -322,6 +326,9 @@ namespace fulltext_search_service {
                 return a.doc_id < b.doc_id;
             });
 
+            if (out_total) {
+                *out_total = out.size();
+            }
             if (out.size() > static_cast<size_t>(max_responses)) {
                 out.resize(static_cast<size_t>(max_responses));
             }
@@ -338,7 +345,8 @@ namespace fulltext_search_service {
             bool partial,
             bool fuzzy,
             int fuzzy_max_edits,
-            std::unordered_set<std::string> *out_matched_terms
+            std::unordered_set<std::string> *out_matched_terms,
+            size_t *out_total
     ) const {
         std::vector <std::vector<RelativeIndex>> results(queries.size());
         if (queries.empty()) {
@@ -358,17 +366,19 @@ namespace fulltext_search_service {
         std::vector <std::jthread> workers;
         workers.reserve(num_workers);
 
+        std::vector<size_t> total_per_query(queries.size(), 0);
         const int safe_max_responses = std::max(max_responses, 1);
         const int safe_fuzzy_max_edits = std::max(0, std::min(fuzzy_max_edits, 3));
         for (unsigned t = 0; t < num_workers; ++t) {
-            workers.emplace_back([this, &queries, &results, &result_mutex, safe_max_responses, num_workers, phrase, partial, fuzzy, safe_fuzzy_max_edits, out_matched_terms, t] {
+            workers.emplace_back([this, &queries, &results, &result_mutex, &total_per_query, safe_max_responses, num_workers, phrase, partial, fuzzy, safe_fuzzy_max_edits, out_matched_terms, out_total, t] {
                 const auto indices = std::views::iota(static_cast<size_t>(t), queries.size()) |
                                      std::views::stride(static_cast<size_t>(num_workers));
                 for (size_t i: indices) {
                     std::vector<RelativeIndex> local_list;
                     local_list.reserve(512);
                     std::unordered_set<std::string> *per_query_matched = (out_matched_terms && i == 0) ? out_matched_terms : nullptr;
-                    process_one_query(index_, queries[i], safe_max_responses, max_word_length_, dev_mode_, phrase, partial, fuzzy, safe_fuzzy_max_edits, per_query_matched, local_list);
+                    size_t *per_query_total = (out_total && i == 0) ? &total_per_query[i] : nullptr;
+                    process_one_query(index_, queries[i], safe_max_responses, max_word_length_, dev_mode_, phrase, partial, fuzzy, safe_fuzzy_max_edits, per_query_matched, local_list, per_query_total);
                     {
                         std::lock_guard lock(result_mutex);
                         results[i] = std::move(local_list);
@@ -378,6 +388,9 @@ namespace fulltext_search_service {
         }
         workers.clear();
 
+        if (out_total && !queries.empty()) {
+            *out_total = total_per_query[0];
+        }
         return results;
     }
 
