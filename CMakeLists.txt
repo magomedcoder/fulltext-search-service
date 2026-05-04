@@ -2,9 +2,14 @@ cmake_minimum_required(VERSION 3.22)
 project(FullTextSearchService LANGUAGES CXX)
 
 option(BUILD_STATIC "Сборка без зависимости от системных libc/libstdc++" OFF)
+option(BUILD_EMBED_SHARED "Shared-библиотека fulltextsearch_embed (C API для Go/cgo)" ON)
 if(BUILD_STATIC)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
     set(CMAKE_POSITION_INDEPENDENT_CODE OFF)
+endif()
+if(BUILD_EMBED_SHARED AND BUILD_STATIC)
+    message(WARNING "BUILD_EMBED_SHARED отключён: несовместим с BUILD_STATIC")
+    set(BUILD_EMBED_SHARED OFF CACHE BOOL "Shared fulltextsearch_embed" FORCE)
 endif()
 
 set(CMAKE_CXX_STANDARD 23)
@@ -49,6 +54,15 @@ FetchContent_MakeAvailable(libstemmer)
 
 target_include_directories(stemmer PUBLIC ${libstemmer_SOURCE_DIR}/include)
 
+if (BUILD_EMBED_SHARED)
+    if (TARGET yaml-cpp)
+        set_target_properties(yaml-cpp PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    endif ()
+    if (TARGET stemmer)
+        set_target_properties(stemmer PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    endif ()
+endif ()
+
 add_library(fulltext_search_service_lib
         src/config.cpp
         src/stop_words.cpp
@@ -71,6 +85,14 @@ target_link_libraries(fulltext_search_service_lib PUBLIC
         yaml-cpp::yaml-cpp
         stemmer
         )
+
+if(BUILD_EMBED_SHARED)
+    set_target_properties(fulltext_search_service_lib PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    add_library(fulltextsearch_embed SHARED src/fulltextsearch_c_api.cpp)
+    target_include_directories(fulltextsearch_embed PUBLIC ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(fulltextsearch_embed PRIVATE fulltext_search_service_lib)
+    set_target_properties(fulltextsearch_embed PROPERTIES OUTPUT_NAME "fulltextsearch_embed")
+endif()
 
 add_executable(fulltext-search-service src/main.cpp)
 target_link_libraries(fulltext-search-service PRIVATE fulltext_search_service_lib)
